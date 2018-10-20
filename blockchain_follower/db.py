@@ -77,7 +77,23 @@ class BlockchainDB:
                                                             witness_signature = binascii.unhexlify(block_data['witness_signature']),
                                                             block_id          = binascii.unhexlify(block_data['block_id']),
                                                             signing_key       = block_data['signing_key']))
-   def get_last_block(self):
+   async def get_last_block(self):
        """ Get the last block that was inserted into the DB
        """
-       pass
+       result    = None
+       db_result = None
+       async with self.db_engine.connect() as conn:
+             query = select([self.blocks_table]).order_by(self.blocks_table.c.block_num.desc()).limit(1)
+             result = await conn.execute(query)
+             db_result = await result.fetchone()
+       result = {'previous'               :binascii.hexlify(db_result['previous']).decode('utf-8'),
+                 'timestamp'              :datetime.datetime.strftime(db_result['timestamp'],'%Y-%m-%dT%H:%M:%S'),
+                 'witness'                :db_result['witness'],
+                 'transaction_merkle_root':binascii.hexlify(db_result['tx_merkle_root']).decode('utf-8'),
+                 'extensions'             :[],
+                 'witness_signature'      :binascii.hexlify(db_result['witness_signature']).decode('utf-8'),
+                 'transactions'           :[],
+                 'block_id'               :binascii.hexlify(db_result['block_id']).decode('utf-8'),
+                 'signing_key'            :db_result['signing_key'],
+                 'transaction_ids'        :[]}
+       return result

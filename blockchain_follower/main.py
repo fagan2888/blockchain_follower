@@ -13,6 +13,7 @@ async def main():
       await blockchain_db.init_db_schema()
       print('KKKKKHHHHHHAAAAAANNNNNNNNN - importing genesis block...')
       await blockchain_db.import_genesis()
+      print(str(await blockchain_db.get_last_block()))
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
