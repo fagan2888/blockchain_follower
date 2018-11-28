@@ -24,6 +24,13 @@ class BlockchainDB:
                                  Column('witness_signature', Binary(72)),
 				 Column('signing_key', String(40)),
 				 Column('block_id', Binary('20')))
+       self.transactions_table = Table('transactions', self.metadata,
+                                       Column('transaction_id', Binary(20),primary_key=True),
+                                       Column('ref_block_num', Integer, ForeignKey('blocks.block_num')),
+                                       Column('ref_block_prefix',Integer),
+                                       Column('expiration',DateTime),
+                                       Column('signatures',Binary(72)))
+
    async def init_db_schema(self):
        """ Setup the initial table structure etc in the DB
        """
@@ -77,6 +84,14 @@ class BlockchainDB:
                                                             witness_signature = binascii.unhexlify(block_data['witness_signature']),
                                                             block_id          = binascii.unhexlify(block_data['block_id']),
                                                             signing_key       = block_data['signing_key']))
+   async def insert_transaction(self,conn=None,tx_data={}):
+       """ Insert a transaction into the DB
+       """
+       await conn.execute(self.transactions_table.insert().values(transaction_id   = binascii.unhexlify(tx_data['transaction_id']),
+                                                                  ref_block_num    = tx_data['ref_block_num'],
+                                                                  ref_block_prefix = tx_data['ref_block_prefix'],
+                                                                  expiration       = datetime.datetime.strptime(tx_data['expiration'],'%Y-%m-%dT%H:%M:%S'),
+                                                                  signatures       = binascii.unhexlify(block_data['signatures']))
    async def get_last_block(self):
        """ Get the last block that was inserted into the DB
        """
