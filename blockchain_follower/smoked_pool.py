@@ -34,16 +34,34 @@ class smoked_instance:
        return json.loads(retval)
    async def ping(self):
        await self.assure_connected()
+       retval = True
        try: 
           await self.ws.ping()
        except:
-          pass
+          retval = False
+       return retval
 
 class smoked_pool:
    def __init__(self,smoked_urls):
-       self.active_smoked_instances = [] # currently active instances that are responding correctly
-       self.temp_failed_instances   = [] # instances that have timed out or returned errors once, if they return an error again they die
-       self.dead_instances          = [] # if we have no live instances or temp failed instances, we try to do necromancy on these
+       self.smoked_instances        = {} # all configured smoked instances
+       self.active_smoked_instances = {} # currently active instances that are responding correctly
+       self.temp_failed_instances   = {} # instances that have timed out or returned errors once, if they return an error again they die
+       self.dead_instances          = {} # if we have no live instances or temp failed instances, we try to do necromancy on these
+
+   async def test_smoked_instance(self, url):
+       while True:
+          instance = self.smoked_instances[url]
+          if instance.ping():
+             self.active_smoked_instances[url] = instance
+          else:
+             del self.active_smoked_instances[url]
+             self.dead_instances[url] = instance
+          await asyncio.sleep(60)
+   
+   def start_tasks(self, async_loop):
+       for k,v in self.smoked_instances.items():
+           async_loop.create_task(self.test_smoked_instance(k))
+
    async def query(self,method,params,request_api=None):
        pass
 

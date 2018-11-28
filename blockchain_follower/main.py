@@ -17,4 +17,8 @@ async def main():
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
+
+    pool = smoked_pool.smoked_pool(config.smoked_urls)
+    pool.start_tasks(loop)
+
     loop.run_until_complete(main())
