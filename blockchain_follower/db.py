@@ -86,6 +86,7 @@ class BlockchainDB:
              query = select([self.blocks_table]).order_by(self.blocks_table.c.block_num.desc()).limit(1)
              result = await conn.execute(query)
              db_result = await result.fetchone()
+       if db_result == None: return None
        result = {'previous'               :binascii.hexlify(db_result['previous']).decode('utf-8'),
                  'timestamp'              :datetime.datetime.strftime(db_result['timestamp'],'%Y-%m-%dT%H:%M:%S'),
                  'witness'                :db_result['witness'],
