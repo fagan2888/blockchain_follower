@@ -6,7 +6,7 @@ from async_generator import async_generator, yield_, asynccontextmanager
 
 from sqlalchemy_aio import ASYNCIO_STRATEGY
 
-from sqlalchemy import Column,Integer,MetaData,Table,Text,String,Binary,DateTime, create_engine, select
+from sqlalchemy import Column,Integer,MetaData,Table,Text,String,Binary,DateTime,ForeignKey, create_engine, select
 from sqlalchemy.schema import CreateTable,DropTable
 
 class BlockchainDB:
@@ -92,7 +92,7 @@ class BlockchainDB:
        await conn.execute(self.transactions_table.insert().values(transaction_id   = binascii.unhexlify(tx_data['transaction_id']),
                                                                   ref_block_num    = tx_data['ref_block_num'],
                                                                   ref_block_prefix = tx_data['ref_block_prefix'],
-                                                                  expiration       = datetime.datetime.strptime(tx_data['expiration'],'%Y-%m-%dT%H:%M:%S'))
+                                                                  expiration       = datetime.datetime.strptime(tx_data['expiration'],'%Y-%m-%dT%H:%M:%S')))
 	# TODO - update transaction_sigs table here
    async def get_last_block(self):
        """ Get the last block that was inserted into the DB
@@ -104,7 +104,8 @@ class BlockchainDB:
              result = await conn.execute(query)
              db_result = await result.fetchone()
        if db_result == None: return None
-       result = {'previous'               :binascii.hexlify(db_result['previous']).decode('utf-8'),
+       result = {'block_num'              :db_result['block_num'],
+                 'previous'               :binascii.hexlify(db_result['previous']).decode('utf-8'),
                  'timestamp'              :datetime.datetime.strftime(db_result['timestamp'],'%Y-%m-%dT%H:%M:%S'),
                  'witness'                :db_result['witness'],
                  'transaction_merkle_root':binascii.hexlify(db_result['tx_merkle_root']).decode('utf-8'),
