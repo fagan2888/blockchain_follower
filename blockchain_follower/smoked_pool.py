@@ -4,6 +4,9 @@ import config
 import asyncio
 import websocket
 
+# TODO - add querying only active nodes, downgrading to failed and dead as appropriate
+# TODO - add querying for status across all active nodes, using async properly
+
 class smoked_instance:
    def __init__(self,smoked_url):
 #       self.ws = websocket.WebSocket()

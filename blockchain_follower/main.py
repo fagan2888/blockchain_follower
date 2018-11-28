@@ -23,14 +23,15 @@ async def main():
          print(str(await blockchain_db.get_last_block()))
 
       # we repeat here for sanity reasons
-      last_block = await blockchain_db.get_last_block()
-      print('Last block in DB is block number %s, ID %s' % (last_block['block_num'], last_block['block_id']))
+      last_db_block = await blockchain_db.get_last_block()
+      print('Last block in DB is block number %s, ID %s' % (last_db_block['block_num'], last_db_block['block_id']))
 
-      time.sleep(5)
 
       print('Querying blockchain state...')
       blockchain_state = await pool.query('get_dynamic_global_properties',[])
-      print(str(blockchain_state))
+
+      print('Last block in blockchain is block number %s, ID %s' % (blockchain_state['head_block_number'], blockchain_state['head_block_id']))
+
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
