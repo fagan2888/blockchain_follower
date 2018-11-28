@@ -28,8 +28,10 @@ class BlockchainDB:
                                        Column('transaction_id', Binary(20),primary_key=True),
                                        Column('ref_block_num', Integer, ForeignKey('blocks.block_num')),
                                        Column('ref_block_prefix',Integer),
-                                       Column('expiration',DateTime),
-                                       Column('signatures',Binary(72)))
+                                       Column('expiration',DateTime))
+       self.tx_sigs_table = Table('transaction_sigs', self.metadata,
+                                  Column('transaction_id', Binary(20), ForeignKey('transactions.transaction_id')),
+                                  Column('signature', Binary(72)))
 
    async def init_db_schema(self):
        """ Setup the initial table structure etc in the DB
@@ -90,8 +92,8 @@ class BlockchainDB:
        await conn.execute(self.transactions_table.insert().values(transaction_id   = binascii.unhexlify(tx_data['transaction_id']),
                                                                   ref_block_num    = tx_data['ref_block_num'],
                                                                   ref_block_prefix = tx_data['ref_block_prefix'],
-                                                                  expiration       = datetime.datetime.strptime(tx_data['expiration'],'%Y-%m-%dT%H:%M:%S'),
-                                                                  signatures       = binascii.unhexlify(block_data['signatures']))
+                                                                  expiration       = datetime.datetime.strptime(tx_data['expiration'],'%Y-%m-%dT%H:%M:%S'))
+	# TODO - update transaction_sigs table here
    async def get_last_block(self):
        """ Get the last block that was inserted into the DB
        """
