@@ -2,44 +2,45 @@ import json
 
 import config
 import asyncio
-import websocket
+import websockets
 
 # TODO - add querying only active nodes, downgrading to failed and dead as appropriate
 # TODO - add querying for status across all active nodes, using async properly
 
 class smoked_instance:
    def __init__(self,smoked_url):
-#       self.ws = websocket.WebSocket()
-#       self.ws.connect(smoked_url)
-#       self.req_id = 1
        self.url = smoked_url
+       loop = asyncio.get_event_loop()
+       self.ws = None
+       loop.run_until_complete(asyncio.ensure_future(self.assure_connected()))
    async def get_status(self):
          """ We want to ensure that each instance is both connected and in sync etc
          """
          await self.assure_connected()
          return {'head_block':1,'active':True,'in_sync':True}
    async def assure_connected(self):
-         pass
-#       if not self.ws.open:
-#          await self.ws.connect(smoked_url)
-#          self.req_id = 1
+       if self.ws is None:
+          self.ws = await websockets.client.connect(self.url)
+          self.req_id = 1
+       if not self.ws.open:
+          self.ws = await websockets.client.connect(self.url)
+          self.req_id = 1
    async def query(self,method,params,request_api=None):
 
-         ws = websocket.WebSocket()
-         ws.connect(self.url)
+         await self.assure_connected()
          if request_api == None:
-            req = json.dumps({'id':1,'method':method,'params':params,'jsonrpc':'2.0'})
-            ws.send(req)
-            resp = ws.recv()
+            req = json.dumps({'id':self.req_id,'method':method,'params':params,'jsonrpc':'2.0'})
+            await self.ws.send(req)
+            resp = await self.ws.recv()
             print(resp)
             retval = json.loads(resp)['result']
          else:
-            req = json.dumps({"id":3,"method":"call","params":[request_api,method,params],'jsonrpc':'2.0'})
-            ws.send(req)
-            resp = ws.recv()
+            req = json.dumps({"id":self.req_id,"method":"call","params":[request_api,method,params],'jsonrpc':'2.0'})
+            await self.ws.send(req)
+            resp = await self.ws.recv()
             print(resp)
             retval = json.loads(resp)['result']
-         ws.shutdown()
+         self.req_id += 1
          return retval
 
 
