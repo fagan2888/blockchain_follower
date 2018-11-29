@@ -75,12 +75,8 @@ class smoked_pool:
    def start_tasks(self, async_loop):
        for k,v in self.smoked_instances.items():
            async_loop.create_task(self.test_smoked_instance(k))
-
    async def pool_state(self):
-         retval = []
-         for k,v in self.smoked_instances.items():
-             retval += [await v.get_status()]
-         return retval
+         return await asyncio.gather(*list(map(lambda x: x.get_status(), self.smoked_instances.values())))
    async def query(self,method,params,request_api=None):
        for k,v in self.active_smoked_instances.items():
            # TODO - run these queries using full async goodness
