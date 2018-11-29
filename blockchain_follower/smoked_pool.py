@@ -20,13 +20,12 @@ class smoked_instance:
          blockchain_state = await self.query('get_dynamic_global_properties',[])
 
          return {'head_block':blockchain_state['head_block_number'],'active':True}
+   async def connect(self):
+       self.ws = await websockets.client.connect(self.url)
+       self.req_id = 1
    async def assure_connected(self):
-       if self.ws is None:
-          self.ws = await websockets.client.connect(self.url)
-          self.req_id = 1
-       if not self.ws.open:
-          self.ws = await websockets.client.connect(self.url)
-          self.req_id = 1
+       if self.ws is None: await self.connect()
+       if not self.ws.open: await self.connect()
    async def query(self,method,params,request_api=None):
          # TODO - add proper error handling here
          await self.assure_connected()
@@ -42,19 +41,14 @@ class smoked_instance:
             retval = json.loads(resp)['result']
          self.req_id += 1
          return retval
-
-
-
-
    async def ping(self):
-        return True
-#       await self.assure_connected()
-#       retval = True
-#       try: 
-#          await self.ws.ping()
-#       except:
-#          retval = False
-#       return retval
+       await self.assure_connected()
+       retval = True
+       try: 
+          await self.ws.ping()
+       except:
+          retval = False
+       return retval
 
 class smoked_pool:
    def __init__(self,smoked_urls):
