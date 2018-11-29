@@ -3,8 +3,10 @@ import uvloop
 
 import smoked_pool
 import config
+import json
 import db
 import time
+import pprint
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
@@ -26,6 +28,10 @@ async def main():
       last_db_block = await blockchain_db.get_last_block()
       print('Last block in DB is block number %s, ID %s' % (last_db_block['block_num'], last_db_block['block_id']))
 
+
+      print('Querying pool status...')
+      pool_status = await pool.pool_state()
+      pprint.pprint(pool_status)
 
       print('Querying blockchain state...')
       blockchain_state = await pool.query('get_dynamic_global_properties',[])

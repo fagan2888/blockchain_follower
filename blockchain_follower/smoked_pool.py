@@ -17,7 +17,9 @@ class smoked_instance:
          """ We want to ensure that each instance is both connected and in sync etc
          """
          await self.assure_connected()
-         return {'head_block':1,'active':True,'in_sync':True}
+         blockchain_state = await self.query('get_dynamic_global_properties',[])
+
+         return {'head_block':blockchain_state['head_block_number'],'active':True}
    async def assure_connected(self):
        if self.ws is None:
           self.ws = await websockets.client.connect(self.url)
@@ -26,19 +28,17 @@ class smoked_instance:
           self.ws = await websockets.client.connect(self.url)
           self.req_id = 1
    async def query(self,method,params,request_api=None):
-
+         # TODO - add proper error handling here
          await self.assure_connected()
          if request_api == None:
             req = json.dumps({'id':self.req_id,'method':method,'params':params,'jsonrpc':'2.0'})
             await self.ws.send(req)
             resp = await self.ws.recv()
-            print(resp)
             retval = json.loads(resp)['result']
          else:
             req = json.dumps({"id":self.req_id,"method":"call","params":[request_api,method,params],'jsonrpc':'2.0'})
             await self.ws.send(req)
             resp = await self.ws.recv()
-            print(resp)
             retval = json.loads(resp)['result']
          self.req_id += 1
          return retval
@@ -79,6 +79,11 @@ class smoked_pool:
        for k,v in self.smoked_instances.items():
            async_loop.create_task(self.test_smoked_instance(k))
 
+   async def pool_state(self):
+         retval = {}
+         for k,v in self.active_smoked_instances.items():
+             retval[k] = await v.get_status()
+         return retval
    async def query(self,method,params,request_api=None):
        for k,v in self.active_smoked_instances.items():
            # TODO - run these queries using full async goodness
