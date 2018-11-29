@@ -12,6 +12,7 @@ class smoked_instance:
        self.url = smoked_url
        loop = asyncio.get_event_loop()
        self.ws = None
+       self.active = True
        loop.run_until_complete(asyncio.ensure_future(self.assure_connected()))
    async def get_status(self):
          """ We want to ensure that each instance is both connected and in sync etc
@@ -19,7 +20,7 @@ class smoked_instance:
          await self.assure_connected()
          blockchain_state = await self.query('get_dynamic_global_properties',[])
 
-         return {'head_block':blockchain_state['head_block_number'],'active':True}
+         return {'url':self.url,'head_block':blockchain_state['head_block_number'],'active':self.active}
    async def connect(self):
        self.ws = await websockets.client.connect(self.url)
        self.req_id = 1
@@ -64,9 +65,11 @@ class smoked_pool:
           instance = self.smoked_instances[url]
           if await instance.ping():
              self.active_smoked_instances[url] = instance
+             instance.active = True
           else:
              del self.active_smoked_instances[url]
              self.dead_instances[url] = instance
+             instance.active = False
           await asyncio.sleep(60)
    
    def start_tasks(self, async_loop):
@@ -74,9 +77,9 @@ class smoked_pool:
            async_loop.create_task(self.test_smoked_instance(k))
 
    async def pool_state(self):
-         retval = {}
-         for k,v in self.active_smoked_instances.items():
-             retval[k] = await v.get_status()
+         retval = []
+         for k,v in self.smoked_instances.items():
+             retval += [await v.get_status()]
          return retval
    async def query(self,method,params,request_api=None):
        for k,v in self.active_smoked_instances.items():
