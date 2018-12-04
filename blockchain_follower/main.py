@@ -37,6 +37,14 @@ async def iter_loop(pool,blockchain_db):
          last_block = await pool.query('get_block',[last_db_block['block_num']+1])
          async with blockchain_db.begin_tx() as (conn,tx):
                await blockchain_db.insert_block(conn=conn,block_num=last_db_block['block_num']+1,block_data=last_block)
+               block_transaction_id_offs = 0
+               for block_transaction in last_block['transactions']:
+                   await blockchain_db.insert_transaction(conn=conn,tx_data={'transaction_id':  last_block['transaction_ids'][block_transaction_id_offs],
+                                                                             'block_num':       last_db_block['block_num']+1,
+                                                                             'ref_block_num':   block_transaction['ref_block_num'],
+                                                                             'ref_block_prefix':block_transaction['ref_block_prefix'],
+                                                                             'expiration':      block_transaction['expiration']})
+                   block_transaction_id_offs += 1
                await tx.commit()
       else:
         await asyncio.sleep(3)

@@ -91,6 +91,7 @@ class BlockchainDB:
        """ Insert a transaction into the DB
        """
        await conn.execute(self.transactions_table.insert().values(transaction_id   = binascii.unhexlify(tx_data['transaction_id']),
+                                                                  block_num        = tx_data['block_num'],
                                                                   ref_block_num    = tx_data['ref_block_num'],
                                                                   ref_block_prefix = tx_data['ref_block_prefix'],
                                                                   expiration       = datetime.datetime.strptime(tx_data['expiration'],'%Y-%m-%dT%H:%M:%S')))
