@@ -2,6 +2,7 @@ import config
 import asyncio
 import binascii
 import datetime
+import json
 from async_generator import async_generator, yield_, asynccontextmanager
 
 from sqlalchemy_aio import ASYNCIO_STRATEGY
@@ -33,6 +34,17 @@ class BlockchainDB:
        self.tx_sigs_table = Table('transaction_sigs', self.metadata,
                                   Column('transaction_id', Binary(20), ForeignKey('transactions.transaction_id')),
                                   Column('signature', Binary(72)))
+       self.tx_ops_table  = Table('transaction_ops', self.metadata,
+                                  Column('op_id',Integer,primary_key=True, autoincrement=True), 
+                                  Column('transaction_id',Binary(20),ForeignKey('transactions.transaction_id')),
+                                  Column('op_type',String(16)),
+                                  Column('raw_json',Text))
+       self.ops_votes_table = Table('ops_votes', self.metadata,
+                                    Column('op_id', Integer, ForeignKey('transaction_ops.op_id')),
+                                    Column('voter', String(16)),
+                                    Column('author', String(16)),
+                                    Column('permlink', String(512)),
+                                    Column('weight', Integer))
 
    async def init_db_schema(self):
        """ Setup the initial table structure etc in the DB
@@ -99,6 +111,11 @@ class BlockchainDB:
        for sig in tx_data['signatures']:
            await conn.execute(self.tx_sigs_table.insert().values(transaction_id = binascii.unhexlify(tx_data['transaction_id']),
                                                                  signature      = binascii.unhexlify(sig)))
+           if 'operations' in tx_data.keys():
+              for op in tx_data['operations']:
+                  await conn.execute(self.tx_ops_table.insert().values(transaction_id = binascii.unhexlify(tx_data['transaction_id']),
+                                                                       op_type        = op[0],
+                                                                       raw_json       = json.dumps(op[1])))
    async def get_last_block(self):
        """ Get the last block that was inserted into the DB
        """
