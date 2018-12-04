@@ -26,6 +26,7 @@ class BlockchainDB:
 				 Column('block_id', Binary('20')))
        self.transactions_table = Table('transactions', self.metadata,
                                        Column('transaction_id', Binary(20),primary_key=True),
+				       Column('block_num', Integer, ForeignKey('blocks.block_num')),
                                        Column('ref_block_num', Integer, ForeignKey('blocks.block_num')),
                                        Column('ref_block_prefix',Integer),
                                        Column('expiration',DateTime))

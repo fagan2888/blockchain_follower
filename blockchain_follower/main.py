@@ -18,18 +18,33 @@ async def iter_loop(pool,blockchain_db):
       pool_status = await pool.pool_state()
       pprint.pprint(pool_status)
 
+      highest_block = 1
+      for instance in pool_status:
+          if instance['active'] and instance['head_block'] > highest_block: highest_block=instance['head_block']
+
       print('Querying blockchain state...')
       blockchain_state = await pool.query('get_dynamic_global_properties',[])
 
-      print('Last block in blockchain is block number %s, ID %s' % (blockchain_state['head_block_number'], blockchain_state['head_block_id']))
+
+      last_block = await pool.query('get_block',[highest_block])
+      pprint.pprint(last_block)
+      print('Last block in blockchain is block number %s, ID %s' % (highest_block, last_block['block_id']))
 
       # TODO - do the magic here (grab the latest block that isn't in DB, start transaction, import all the data, continue)
 
-      await asyncio.sleep(3)
+      if highest_block > last_db_block['block_num']:
+         print('importing block into DB...')
+         last_block = await pool.query('get_block',[last_db_block['block_num']+1])
+         async with blockchain_db.begin_tx() as (conn,tx):
+               await blockchain_db.insert_block(conn=conn,block_num=last_db_block['block_num']+1,block_data=last_block)
+               await tx.commit()
+      else:
+        await asyncio.sleep(3)
 
 
 async def main():
       global pool
+      global blockchain_db
       print('Setting up DB...')
       blockchain_db = db.BlockchainDB()
       await blockchain_db.init_db_schema()
