@@ -43,7 +43,8 @@ async def iter_loop(pool,blockchain_db):
                                                                              'block_num':       last_db_block['block_num']+1,
                                                                              'ref_block_num':   block_transaction['ref_block_num'],
                                                                              'ref_block_prefix':block_transaction['ref_block_prefix'],
-                                                                             'expiration':      block_transaction['expiration']})
+                                                                             'expiration':      block_transaction['expiration'],
+                                                                             'signatures':      block_transaction['signatures']})
                    block_transaction_id_offs += 1
                await tx.commit()
       else:

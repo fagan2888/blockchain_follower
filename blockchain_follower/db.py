@@ -95,7 +95,10 @@ class BlockchainDB:
                                                                   ref_block_num    = tx_data['ref_block_num'],
                                                                   ref_block_prefix = tx_data['ref_block_prefix'],
                                                                   expiration       = datetime.datetime.strptime(tx_data['expiration'],'%Y-%m-%dT%H:%M:%S')))
-	# TODO - update transaction_sigs table here
+       print(tx_data)
+       for sig in tx_data['signatures']:
+           await conn.execute(self.tx_sigs_table.insert().values(transaction_id = binascii.unhexlify(tx_data['transaction_id']),
+                                                                 signature      = binascii.unhexlify(sig)))
    async def get_last_block(self):
        """ Get the last block that was inserted into the DB
        """
