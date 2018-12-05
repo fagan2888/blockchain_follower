@@ -8,7 +8,7 @@ from async_generator import async_generator, yield_, asynccontextmanager
 
 from sqlalchemy_aio import ASYNCIO_STRATEGY
 
-from sqlalchemy import Column,Integer,MetaData,Table,Text,String,Binary,DateTime,ForeignKey, create_engine, select
+from sqlalchemy import Column,Integer,MetaData,Table,Text,String,Binary,DateTime,ForeignKey,Numeric, create_engine, select
 from sqlalchemy.schema import CreateTable,DropTable
 
 class BlockchainDB:
@@ -47,9 +47,18 @@ class BlockchainDB:
                                     Column('permlink', String(512)),
                                     Column('weight', Integer))
        self.accounts_table = Table('accounts', self.metadata,
-                                   Column('account_name', String(16)),
+                                   Column('account_name', String(16), primary_key=True),
                                    Column('creator',      String(16)),
-                                   Column('json_meta',    Text))
+                                   Column('memo_key',     String(40)),
+                                   Column('json_meta',    Text),
+                                   Column('smoke_balance',Numeric),
+                                   Column('smoke_power_balance',Numeric))
+       self.accounts_auths_table = Table('accounts_auths', self.metadata,
+                                         Column('account_name', String(16), ForeignKey('accounts.account_name')),
+                                         Column('auth_class',    String(16)), # owner/active/posting etc
+                                         Column('pub_key',       String(40)), # either a public key or a null string
+                                         Column('authed_user',   String(16)), # either a username or a null string
+                                         Column('weight',        Integer))
 
    async def init_db_schema(self):
        """ Setup the initial table structure etc in the DB
@@ -126,7 +135,21 @@ class BlockchainDB:
            elif op[0]=='account_create':
               await conn.execute(self.accounts_table.insert().values(account_name = op[1]['new_account_name'],
                                                                      creator      = op[1]['creator'],
+                                                                     memo_key     = op[1]['memo_key'],
                                                                      json_meta    = "{}"))
+              for auth_class in ['owner','active','posting']:
+                  for acc in op[1][auth_class]['account_auths']:
+                      await conn.execute(self.accounts_auths_table.insert().values(account_name = op[1]['new_account_name'],
+                                                                                   auth_class   = auth_class,
+                                                                                   authed_user  = acc[0],
+                                                                                   weight       = acc[1]))
+                  for key in op[1][auth_class]['key_auths']:
+                      await conn.execute(self.accounts_auths_table.insert().values(account_name = op[1]['new_account_name'],
+                                                                                   auth_class   = auth_class,
+                                                                                   pub_key      = key[0],
+                                                                                   weight       = key[1]))
+
+
    async def get_last_block(self):
        """ Get the last block that was inserted into the DB
        """
