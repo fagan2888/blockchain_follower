@@ -3,6 +3,7 @@ import asyncio
 import binascii
 import datetime
 import json
+import pprint
 from async_generator import async_generator, yield_, asynccontextmanager
 
 from sqlalchemy_aio import ASYNCIO_STRATEGY
@@ -45,6 +46,10 @@ class BlockchainDB:
                                     Column('author', String(16)),
                                     Column('permlink', String(512)),
                                     Column('weight', Integer))
+       self.accounts_table = Table('accounts', self.metadata,
+                                   Column('account_name', String(16)),
+                                   Column('creator',      String(16)),
+                                   Column('json_meta',    Text))
 
    async def init_db_schema(self):
        """ Setup the initial table structure etc in the DB
@@ -102,20 +107,26 @@ class BlockchainDB:
    async def insert_transaction(self,conn=None,tx_data={}):
        """ Insert a transaction into the DB
        """
+       print(tx_data)
        await conn.execute(self.transactions_table.insert().values(transaction_id   = binascii.unhexlify(tx_data['transaction_id']),
                                                                   block_num        = tx_data['block_num'],
                                                                   ref_block_num    = tx_data['ref_block_num'],
                                                                   ref_block_prefix = tx_data['ref_block_prefix'],
                                                                   expiration       = datetime.datetime.strptime(tx_data['expiration'],'%Y-%m-%dT%H:%M:%S')))
-       print(tx_data)
        for sig in tx_data['signatures']:
            await conn.execute(self.tx_sigs_table.insert().values(transaction_id = binascii.unhexlify(tx_data['transaction_id']),
                                                                  signature      = binascii.unhexlify(sig)))
-           if 'operations' in tx_data.keys():
-              for op in tx_data['operations']:
-                  await conn.execute(self.tx_ops_table.insert().values(transaction_id = binascii.unhexlify(tx_data['transaction_id']),
-                                                                       op_type        = op[0],
-                                                                       raw_json       = json.dumps(op[1])))
+       for op in tx_data['operations']:
+           op_id = await conn.execute(self.tx_ops_table.insert().values(transaction_id = binascii.unhexlify(tx_data['transaction_id']),
+                                                                        op_type        = op[0],
+                                                                        raw_json       = json.dumps(op[1])))
+           pprint.pprint(op)
+           if op[0]=='vote':
+              await conn.execute(self.ops_votes_table.insert().values(op_id=op_id.inserted_primary_key,**(op[1])))
+           elif op[0]=='account_create':
+              await conn.execute(self.accounts_table.insert().values(account_name = op[1]['new_account_name'],
+                                                                     creator      = op[1]['creator'],
+                                                                     json_meta    = "{}"))
    async def get_last_block(self):
        """ Get the last block that was inserted into the DB
        """

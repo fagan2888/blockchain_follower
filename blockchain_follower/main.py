@@ -11,6 +11,7 @@ import pprint
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 async def iter_loop(pool,blockchain_db):
+      # TODO - start at a particular block height
       last_db_block = await blockchain_db.get_last_block()
       print('Last block in DB is block number %s, ID %s' % (last_db_block['block_num'], last_db_block['block_id']))
 
@@ -22,15 +23,10 @@ async def iter_loop(pool,blockchain_db):
       for instance in pool_status:
           if instance['active'] and instance['head_block'] > highest_block: highest_block=instance['head_block']
 
-      print('Querying blockchain state...')
-      blockchain_state = await pool.query('get_dynamic_global_properties',[])
-
 
       last_block = await pool.query('get_block',[highest_block])
-      pprint.pprint(last_block)
       print('Last block in blockchain is block number %s, ID %s' % (highest_block, last_block['block_id']))
 
-      # TODO - do the magic here (grab the latest block that isn't in DB, start transaction, import all the data, continue)
 
       if highest_block > last_db_block['block_num']:
          print('importing block into DB...')
@@ -39,13 +35,17 @@ async def iter_loop(pool,blockchain_db):
                await blockchain_db.insert_block(conn=conn,block_num=last_db_block['block_num']+1,block_data=last_block)
                block_transaction_id_offs = 0
                for block_transaction in last_block['transactions']:
-                   await blockchain_db.insert_transaction(conn=conn,tx_data={'transaction_id':  last_block['transaction_ids'][block_transaction_id_offs],
-                                                                             'block_num':       last_db_block['block_num']+1,
-                                                                             'ref_block_num':   block_transaction['ref_block_num'],
-                                                                             'ref_block_prefix':block_transaction['ref_block_prefix'],
-                                                                             'expiration':      block_transaction['expiration'],
-                                                                             'signatures':      block_transaction['signatures']})
-                   block_transaction_id_offs += 1
+                   try:
+                      await blockchain_db.insert_transaction(conn=conn,tx_data={'transaction_id':  last_block['transaction_ids'][block_transaction_id_offs],
+                                                                                'block_num':       last_db_block['block_num']+1,
+                                                                                'ref_block_num':   block_transaction['ref_block_num'],
+                                                                                'ref_block_prefix':block_transaction['ref_block_prefix'],
+                                                                                'expiration':      block_transaction['expiration'],
+                                                                                'operations':      block_transaction['operations'],
+                                                                                'signatures':      block_transaction['signatures']})
+                      block_transaction_id_offs += 1
+                   except e:
+                      print(e)
                await tx.commit()
       else:
         await asyncio.sleep(3)

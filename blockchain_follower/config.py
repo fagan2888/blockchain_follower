@@ -1,1 +1,1 @@
-smoked_urls = ['ws://localhost:8090']
+smoked_urls = ['ws://104.248.168.86:8090/']
