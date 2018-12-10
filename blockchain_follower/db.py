@@ -42,7 +42,6 @@ class BlockchainDB:
                                   Column('op_type',String(16)),
                                   Column('raw_json',Text))
        self.ops_votes_table = Table('ops_votes', self.metadata,
-                                    Column('op_id', Integer, ForeignKey('transaction_ops.op_id')),
                                     Column('voter', String(16)),
                                     Column('author', String(16)),
                                     Column('permlink', String(512)),
@@ -131,7 +130,10 @@ class BlockchainDB:
                                                             block_id          = binascii.unhexlify(block_data['block_id']),
                                                             signing_key       = block_data['signing_key']))
    async def insert_vote_op(self,conn,op,op_id):
-       await conn.execute(self.ops_votes_table.insert().values(op_id=op_id.inserted_primary_key,**(op[1])))
+       await conn.execute(self.ops_votes_table.insert().values(voter    = op[1]['voter'],
+                                                               author   = op[1]['author'],
+                                                               permlink = op[1]['permlink'],
+                                                               weight   = op[1]['weight']))
    async def insert_account_create_op(self,conn,op,op_id):
        await conn.execute(self.accounts_table.insert().values(account_name = op[1]['new_account_name'],
                                                               creator      = op[1]['creator'],

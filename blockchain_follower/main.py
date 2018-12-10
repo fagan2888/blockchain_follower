@@ -44,7 +44,7 @@ async def iter_loop(pool,blockchain_db):
                                                                                 'operations':      block_transaction['operations'],
                                                                                 'signatures':      block_transaction['signatures']})
                       block_transaction_id_offs += 1
-                   except e:
+                   except Exception as e:
                       print(e)
                await tx.commit()
       else:
