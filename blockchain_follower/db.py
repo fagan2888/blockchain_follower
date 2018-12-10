@@ -59,6 +59,14 @@ class BlockchainDB:
                                          Column('pub_key',       String(40)), # either a public key or a null string
                                          Column('authed_user',   String(16)), # either a username or a null string
                                          Column('weight',        Integer))
+       self.comments_table = Table('comments', self.metadata,
+                                   Column('comment_id',Integer,primary_key=True, autoincrement=True),
+                                   Column('parent_author',String(16)),
+                                   Column('parent_permlink',Text),
+                                   Column('author',String(16)),
+                                   Column('title',Text),
+                                   Column('body',Text),
+                                   Column('json_meta',Text))
 
    async def init_db_schema(self):
        """ Setup the initial table structure etc in the DB
@@ -113,6 +121,32 @@ class BlockchainDB:
                                                             witness_signature = binascii.unhexlify(block_data['witness_signature']),
                                                             block_id          = binascii.unhexlify(block_data['block_id']),
                                                             signing_key       = block_data['signing_key']))
+   async def insert_vote_op(self,conn,op,op_id):
+       await conn.execute(self.ops_votes_table.insert().values(op_id=op_id.inserted_primary_key,**(op[1])))
+   async def insert_account_create_op(self,conn,op,op_id):
+       await conn.execute(self.accounts_table.insert().values(account_name = op[1]['new_account_name'],
+                                                              creator      = op[1]['creator'],
+                                                              memo_key     = op[1]['memo_key'],
+                                                              json_meta    = "{}"))
+       for auth_class in ['owner','active','posting']:
+           for acc in op[1][auth_class]['account_auths']:
+               await conn.execute(self.accounts_auths_table.insert().values(account_name = op[1]['new_account_name'],
+                                                                            auth_class   = auth_class,
+                                                                            authed_user  = acc[0],
+                                                                            weight       = acc[1]))
+           for key in op[1][auth_class]['key_auths']:
+               await conn.execute(self.accounts_auths_table.insert().values(account_name = op[1]['new_account_name'],
+                                                                            auth_class   = auth_class,
+                                                                            pub_key      = key[0],
+                                                                            weight       = key[1]))
+
+   async def insert_comment_op(self,conn,op,op_id):
+       await conn.execute(self.comments_table.insert().values(parent_author   = op[1]['parent_author'],
+                                                              parent_permlink = op[1]['parent_permlink'],
+                                                              author          = op[1]['author'],
+                                                              title           = op[1]['title'],
+                                                              body            = op[1]['body'],
+                                                              json_meta       = op[1]['json_metadata']))
    async def insert_transaction(self,conn=None,tx_data={}):
        """ Insert a transaction into the DB
        """
@@ -131,24 +165,11 @@ class BlockchainDB:
                                                                         raw_json       = json.dumps(op[1])))
            pprint.pprint(op)
            if op[0]=='vote':
-              await conn.execute(self.ops_votes_table.insert().values(op_id=op_id.inserted_primary_key,**(op[1])))
+              await self.insert_vote_op(conn,op,op_id)
            elif op[0]=='account_create':
-              await conn.execute(self.accounts_table.insert().values(account_name = op[1]['new_account_name'],
-                                                                     creator      = op[1]['creator'],
-                                                                     memo_key     = op[1]['memo_key'],
-                                                                     json_meta    = "{}"))
-              for auth_class in ['owner','active','posting']:
-                  for acc in op[1][auth_class]['account_auths']:
-                      await conn.execute(self.accounts_auths_table.insert().values(account_name = op[1]['new_account_name'],
-                                                                                   auth_class   = auth_class,
-                                                                                   authed_user  = acc[0],
-                                                                                   weight       = acc[1]))
-                  for key in op[1][auth_class]['key_auths']:
-                      await conn.execute(self.accounts_auths_table.insert().values(account_name = op[1]['new_account_name'],
-                                                                                   auth_class   = auth_class,
-                                                                                   pub_key      = key[0],
-                                                                                   weight       = key[1]))
-
+              await self.insert_account_create_op(conn,op,op_id)
+           elif op[0]=='comment':
+              await self.insert_comment_op(conn,op,op_id)
 
    async def get_last_block(self):
        """ Get the last block that was inserted into the DB
