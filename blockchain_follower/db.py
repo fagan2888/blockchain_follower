@@ -74,7 +74,12 @@ class BlockchainDB:
                                     Column('amount', Numeric),
                                     Column('token', String(8)),
                                     Column('memo', String(2048)))
-  
+       self.witnesses_table = Table('witnesses', self.metadata,
+                                    Column('name',String(16), primary_key=True),
+                                    Column('account_creation_fee', Numeric),
+                                    Column('signing_key', String(40)),
+                                    Column('url',String(2048))) 
+ 
 
    async def init_db_schema(self):
        """ Setup the initial table structure etc in the DB
@@ -166,6 +171,12 @@ class BlockchainDB:
                                                                amount       = amount,
                                                                token        = token,
                                                                memo         = op[1]['memo']))
+   async def insert_witness_update(self,conn,op,op_id):
+       # TODO - check if exists first, if so then we do an update
+       await conn.execute(self.witnesses_table.insert().values(name                 = op[1]['owner'],
+                                                               account_creation_fee = decimal.Decimal(op[1]['props']['account_creation_fee']),
+                                                               url                  = op[1]['url'],
+                                                               signing_key          = op[1]['block_signing_key']))
    async def insert_transaction(self,conn=None,tx_data={}):
        """ Insert a transaction into the DB
        """
@@ -191,6 +202,8 @@ class BlockchainDB:
               await self.insert_comment_op(conn,op,op_id)
            elif op[0]=='transfer':
               await self.insert_transfer_op(conn,op,op_id)
+           elif op[0]=='witness_update':
+              await self.insert_witness_update_op(conn,op,op_id)
 
    async def get_last_block(self):
        """ Get the last block that was inserted into the DB
