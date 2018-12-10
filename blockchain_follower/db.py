@@ -1,6 +1,7 @@
 import config
 import asyncio
 import binascii
+import decimal
 import datetime
 import json
 import pprint
@@ -67,6 +68,14 @@ class BlockchainDB:
                                    Column('title',Text),
                                    Column('body',Text),
                                    Column('json_meta',Text))
+       self.transfers_table = Table('transfers', self.metadata,
+                                    Column('transfer_id',Integer,primary_key=True, autoincrement=True),
+                                    Column('from', String(16)),
+                                    Column('to',   String(16)),
+                                    Column('amount', Numeric),
+                                    Column('token', String(8)),
+                                    Column('memo', String(2048)))
+  
 
    async def init_db_schema(self):
        """ Setup the initial table structure etc in the DB
@@ -147,6 +156,14 @@ class BlockchainDB:
                                                               title           = op[1]['title'],
                                                               body            = op[1]['body'],
                                                               json_meta       = op[1]['json_metadata']))
+   async def insert_transfer_op(self,conn,op,op_id):
+       amount,token = op[1]['amount'].split()
+       amount = decimal.Decimal(amount)
+       await conn.execute(self.transfers_table.insert().values(from   = op[1]['from'],
+                                                               to     = op[1]['to'],
+                                                               amount = amount,
+                                                               token  = token,
+                                                               memo   = op[1]['memo']))
    async def insert_transaction(self,conn=None,tx_data={}):
        """ Insert a transaction into the DB
        """
@@ -170,6 +187,8 @@ class BlockchainDB:
               await self.insert_account_create_op(conn,op,op_id)
            elif op[0]=='comment':
               await self.insert_comment_op(conn,op,op_id)
+           elif op[0]=='transfer':
+              await self.insert_transfer_op(conn,op,op_id)
 
    async def get_last_block(self):
        """ Get the last block that was inserted into the DB
