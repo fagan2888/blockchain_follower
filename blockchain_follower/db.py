@@ -24,7 +24,7 @@ class BlockchainDB:
 				 Column('witness',  String(16)),
 				 Column('tx_merkle_root', Binary(20)),
 				 Column('extensions', Text), # this should be changed if the extensions field is ever actually used
-                                 Column('witness_signature', Binary(72)),
+                                 Column('witness_signature', Binary(80)),
 				 Column('signing_key', String(40)),
 				 Column('block_id', Binary('20')))
        self.transactions_table = Table('transactions', self.metadata,
@@ -35,7 +35,7 @@ class BlockchainDB:
                                        Column('expiration',DateTime))
        self.tx_sigs_table = Table('transaction_sigs', self.metadata,
                                   Column('transaction_id', Binary(20), ForeignKey('transactions.transaction_id')),
-                                  Column('signature', Binary(72)))
+                                  Column('signature', Binary(80)))
        self.tx_ops_table  = Table('transaction_ops', self.metadata,
                                   Column('op_id',Integer,primary_key=True, autoincrement=True), 
                                   Column('transaction_id',Binary(20),ForeignKey('transactions.transaction_id')),
@@ -70,8 +70,8 @@ class BlockchainDB:
                                    Column('json_meta',Text))
        self.transfers_table = Table('transfers', self.metadata,
                                     Column('transfer_id',Integer,primary_key=True, autoincrement=True),
-                                    Column('from', String(16)),
-                                    Column('to',   String(16)),
+                                    Column('from_account', String(16)),
+                                    Column('to_account',   String(16)),
                                     Column('amount', Numeric),
                                     Column('token', String(8)),
                                     Column('memo', String(2048)))
@@ -159,11 +159,11 @@ class BlockchainDB:
    async def insert_transfer_op(self,conn,op,op_id):
        amount,token = op[1]['amount'].split()
        amount = decimal.Decimal(amount)
-       await conn.execute(self.transfers_table.insert().values(from   = op[1]['from'],
-                                                               to     = op[1]['to'],
-                                                               amount = amount,
-                                                               token  = token,
-                                                               memo   = op[1]['memo']))
+       await conn.execute(self.transfers_table.insert().values(from_account = op[1]['from'],
+                                                               to_account   = op[1]['to'],
+                                                               amount       = amount,
+                                                               token        = token,
+                                                               memo         = op[1]['memo']))
    async def insert_transaction(self,conn=None,tx_data={}):
        """ Insert a transaction into the DB
        """
